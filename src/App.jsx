@@ -22,10 +22,42 @@ function getRatingColor(rating) {
   }
 }
 
+function highlightText(text, searchText) {
+    if (!searchText) return text;
+
+    const regex = new RegExp(`(${searchText})`, "gi");
+
+    return text
+      .split(regex)
+      .map((part, index) =>
+        part.toLowerCase() ===
+        searchText.toLowerCase() ? (
+          <span
+            key={index}
+            style={{
+              backgroundColor: "#87CEFA",
+              padding: "0 2px",
+              borderRadius: "3px",
+            }}
+          >
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      );
+  }
+
 function App() {
   const [foods, setFoods] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [exactMatch, setExactMatch] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [selectedRatings, setSelectedRatings] = useState([0, 1, 2, 3, 9,
+  ]);
+  const [favorites, setFavorites] = useState([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] =
+    useState(false);
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}FoodList_clean_v2.json`)
@@ -37,8 +69,87 @@ function App() {
       .catch((error) => console.error(error));
   }, []);
 
+  useEffect(() => {
+    const savedFavorites =
+      JSON.parse(
+        localStorage.getItem("favorites")
+      ) || [];
+
+    setFavorites(savedFavorites);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "favorites",
+      JSON.stringify(favorites)
+    );
+  }, [favorites]);
+
+  useEffect(() => {
+      const handleScroll = () => {
+        setShowScrollTop(window.scrollY > 5);
+      };
+
+      window.addEventListener("scroll", handleScroll);
+
+      return () => {
+        window.removeEventListener(
+          "scroll",
+          handleScroll
+        );
+      };
+    }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  const toggleFavorite = (foodId) => {
+    if (favorites.includes(foodId)) {
+      setFavorites(
+        favorites.filter(
+          (id) => id !== foodId
+        )
+      );
+    } else {
+      setFavorites([
+        ...favorites,
+        foodId,
+      ]);
+    }
+  };
+
+  const toggleRating = (rating) => {
+    if (selectedRatings.includes(rating)) {
+      setSelectedRatings(
+        selectedRatings.filter(
+          (r) => r !== rating
+        )
+      );
+    } else {
+      setSelectedRatings([
+        ...selectedRatings,
+        rating,
+      ]);
+    }
+  };
+
   const filteredFoods = foods
   .filter((food) => {
+    if (
+      showFavoritesOnly &&
+      !favorites.includes(food.id)
+    ) {
+      return false;
+    }
+    if (
+      !selectedRatings.includes(food.rating)
+    ) {
+      return false;
+    }
     const search = searchText.toLowerCase();
 
     if (!search) return true;
@@ -83,29 +194,59 @@ function App() {
 
 
   return (
+    <>
     <div style={{ padding: "20px" }}>
-      <h1>Lebensmittelcheck</h1>
+      <h1>Histamin Tracker</h1>
 
-      <input
-        type="text"
-        placeholder="Lebensmittel suchen..."
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
+      <div
         style={{
+          position: "relative",
           width: "300px",
-          padding: "8px",
-          marginBottom: "20px",
+          margin: "0 auto 20px auto",
         }}
-      />
+      >
+        <input
+          type="text"
+          placeholder="Lebensmittel suchen..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "8px 35px 8px 8px",
+            boxSizing: "border-box",
+          }}
+        />
+
+        {searchText && (
+          <button
+            onClick={() => setSearchText("")}
+            style={{
+              position: "absolute",
+              right: "8px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              fontSize: "18px",
+              color: "#888",
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
     <div
       style={{
         display: "flex",
+        justifyContent: "center",
         alignItems: "center",
         gap: "12px",
         marginBottom: "20px",
       }}
     >
+
       <span>
         {exactMatch
           ? "Exakte Suche"
@@ -169,6 +310,65 @@ function App() {
       <div
         style={{
           display: "flex",
+          gap: "10px",
+          flexWrap: "wrap",
+          marginBottom: "20px",
+        }}
+      >
+        {[0, 1, 2, 3, 9].map((rating) => (
+
+          <button
+            key={rating}
+            onClick={() =>
+              toggleRating(rating)
+            }
+            style={{
+              backgroundColor:
+                selectedRatings.includes(rating)
+                  ? getRatingColor(rating)
+                  : "#ddd",
+
+              color: "white",
+              border: "none",
+              borderRadius: "20px",
+              padding: "8px 15px",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            {rating}
+          </button>
+
+        ))}
+        <button
+          onClick={() =>
+            setShowFavoritesOnly(
+              !showFavoritesOnly
+            )
+          }
+          style={{
+            backgroundColor:
+              showFavoritesOnly
+                ? "#FFD700"
+                : "#ddd",
+            color: showFavoritesOnly
+              ? "black"
+              : "black",
+            border: "none",
+            borderRadius: "20px",
+            padding: "8px 15px",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          ★
+        </button>
+      </div>
+
+
+      <div
+        style={{
+          display: "flex",
           flexWrap: "wrap",
           gap: "8px",
           marginBottom: "20px",
@@ -227,7 +427,45 @@ function App() {
                 borderRadius: "5px",
               }}
             >
-              <strong>{food.name}</strong>
+
+  <div
+  style={{
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "10px",
+    textAlign: "center",
+  }}
+>
+  <button
+    onClick={() =>
+      toggleFavorite(food.id)
+    }
+    style={{
+      border: "none",
+      background: "none",
+      cursor: "pointer",
+      fontSize: "24px",
+      padding: 0,
+    }}
+  >
+    {favorites.includes(food.id)
+      ? "⭐"
+      : "☆"}
+  </button>
+
+  <strong
+    style={{
+      fontSize: "28px",
+    }}
+  >
+    {highlightText(
+      food.name,
+      searchText
+    )}
+  </strong>
+</div>
 
               <br />
 
@@ -256,7 +494,20 @@ function App() {
               {food.synonyms.length > 0 && (
                 <>
                   <br />
-                  Synonyme: {food.synonyms.join(", ")}
+                  Synonyme:{" "}
+                  {food.synonyms.map(
+                    (synonym, index) => (
+                      <span key={index}>
+                        {highlightText(
+                          synonym,
+                          searchText
+                        )}
+                        {index <
+                          food.synonyms.length - 1 &&
+                          ", "}
+                      </span>
+                    )
+                  )}
                 </>
               )}
 
@@ -272,7 +523,32 @@ function App() {
         </div>
       ))}
     </div>
-  );
+
+    {showScrollTop && (
+      <button
+        onClick={scrollToTop}
+        style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          width: "50px",
+          height: "50px",
+          borderRadius: "50%",
+          border: "none",
+          backgroundColor: "#4CAF50",
+          color: "white",
+          fontSize: "24px",
+          cursor: "pointer",
+          boxShadow:
+            "0 2px 10px rgba(0,0,0,0.3)",
+          zIndex: 999,
+        }}
+      >
+        ↑
+      </button>
+    )}
+  </>
+);
 }
 
 export default App;
