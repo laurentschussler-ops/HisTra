@@ -28,7 +28,7 @@ function App() {
   const [exactMatch, setExactMatch] = useState(false);
 
   useEffect(() => {
-    fetch("/FoodList_clean_v2.json")
+    fetch(`${import.meta.env.BASE_URL}FoodList_clean_v2.json`)
       .then((response) => response.json())
       .then((data) => {
         setFoods(data);
